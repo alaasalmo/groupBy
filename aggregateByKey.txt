@@ -1,0 +1,93 @@
+Aggregiation
+1. Intial the empty value
+2. Add item to Collection
+3. Merge partitions
+
+
+
+Example(1):
+import scala.collection.mutable.HashSet
+
+val keysWithValuesList = Array("foo=A", "foo=B", "bar=C", "bar=D")
+val data = sc.parallelize(keysWithValuesList)
+//Create key value pairs
+val kv = data.map(_.split("=")).map(v => (v(0), v(1))).cache()
+
+val initialSet = HashSet.empty[String]
+val addToSet = (s: HashSet[String], v: String) => s += v
+val mergePartitionSets = (p1: HashSet[String], p2: HashSet[String]) => p1 ++= p2
+
+val uniqueByKey = kv.aggregateByKey(initialSet)(addToSet, mergePartitionSets)
+uniqueByKey.collect
+
+
+Example(2)::
+import scala.collection.mutable.ListBuffer
+
+val keysWithValuesList = Array("foo=A", "foo=B", "bar=C", "bar=D")
+val data = sc.parallelize(keysWithValuesList)
+//Create key value pairs
+val kv = data.map(_.split("=")).map(v => (v(0), v(1))).cache()
+
+val initialList = new ListBuffer[String]()
+
+val addToList = (s: ListBuffer[String], v: String) => s += v
+val mergePartitionSets = (p1: ListBuffer[String], p2: ListBuffer[String]) => p1 ::: p2
+
+val uniqueByKey = kv.aggregateByKey(initialList)(addToList, mergePartitionSets)
+
+uniqueByKey.collect
+
+
+
+Example(3): Important example:
+
+val pairs = sc.parallelize(List(("aa", 1), ("bb", 2),("aa", 10), ("bb", 20),("aa", 100), ("bb", 200))) 
+pairs.aggregateByKey(List[Any]())((aggr, value) => aggr ::: (value :: Nil), (aggr1, aggr2) => aggr1 ::: aggr2).collect().toMap 
+
+
+Example(2):
+
+
+val pairs = sc.parallelize(List(("aa", 1), ("bb", 2),("aa", 10), ("bb", 20),("aa", 100), ("bb", 200)))
+pairs.aggregateByKey(List[Int]())( (aggr, value) => value +: aggr,(aggr1, aggr2) => aggr1 ++ aggr2).foreach(println _)
+pairs.aggregateByKey(List[Int]())( (aggr, value) => value :: aggr,(aggr1, aggr2) => aggr1 ::: aggr2).foreach(println _)
+
+
+val pairs = sc.parallelize(Array(("math",List(55, 60)), ("math",List(55, 65)), ("math",List(56, 60)), ("math",List(56, 65)), ("science",List(59, 61)), ("science",List(59, 62)), ("science",List(54, 61)), ("science",List(54, 62)), ("english",List(57, 0)), ("english",List(58, 0))))
+val results=pairs.aggregateByKey(List[Any]())((aggr, value) => aggr ::: (value :: Nil), (aggr1, aggr2) => aggr1 ::: aggr2)
+ 
+
+acc(List(List(55, 60),List(56, 60),List(59, 61)))
+
+Example(1): Add two list, merger two Lists
+
+val pairs1 = List("aa", "bb","cc", "dd")
+val pairs2 = List("aa", "bb","cc", "dd")
+val pairs3 = pairs1 ::: pairs2 
+
+
+
+val pairs1 = List("aa", "bb","cc", "dd")
+val pairs2 = "RR"::pairs1
+
+
+Example(3): Add two maps
+
+val map1 = Map("A"->"AA","B"->"BB")
+val map2 = Map("C"->"CC","D"->"DD")
+val map3 = map1 ++ map2
+
+
+
+
+
+
+val pairs1 = sc.parallelize(List("aa", "bb","cc", "dd"))
+val pairs2 = sc.parallelize(List("aa", "bb","cc", "dd"))
+
+val pairs3 = pairs1.union(pairs2)
+
+
+
+

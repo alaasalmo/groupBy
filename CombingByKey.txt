@@ -1,0 +1,62 @@
+CombingByKey has four steps:
+
+1. Create Combiner:  (v)=>(1,v)
+2. Merge Value: ((Int1,Int2),V) => (Int1 + v,Int2+1) 
+3. Merge Combiners: (int11,int12),(int21,int22) => (int11 + int21,int12+int22)
+
+
+
+
+type ScoreCollector = (Int, Double)
+type PersonScores = (String, (Int, Double))
+
+val initialScores = Array(("Fred", 88.0), ("Fred", 95.0), ("Fred", 91.0), ("Wilma", 93.0), ("Wilma", 95.0), ("Wilma", 98.0))
+
+val wilmaAndFredScores = sc.parallelize(initialScores).cache()
+
+val createScoreCombiner = (score: Double) => (1, score)
+
+val scoreCombiner = (collector: ScoreCollector, score: Double) => {
+         val (numberScores, totalScore) = collector
+        (numberScores + 1, totalScore + score)
+      }
+
+val scoreMerger = (collector1: ScoreCollector, collector2: ScoreCollector) => {
+      val (numScores1, totalScore1) = collector1
+      val (numScores2, totalScore2) = collector2
+      (numScores1 + numScores2, totalScore1 + totalScore2)
+    }
+val scores = wilmaAndFredScores.combineByKey(createScoreCombiner, scoreCombiner, scoreMerger)
+
+val averagingFunction = (personScore: PersonScores) => {
+       val (name, (numberScores, totalScore)) = personScore
+       (name, totalScore / numberScores)
+    }
+
+val averageScores = scores.collectAsMap().map(averagingFunction)
+
+println("Average Scores using CombingByKey")
+    averageScores.foreach((ps) => {
+      val(name,average) = ps
+       println(name+ "'s average score : " + average)
+    })
+
+	
+
+Example
+
+val pairs = sc.parallelize(List(("aa", 1), ("bb", 2),("aa", 10), ("bb", 20),("aa", 100), ("bb", 200)))
+
+pairs.combineByKey((value) => List(value), (aggr: List[Any], value) => aggr ::: (value :: Nil), (aggr1: List[Any], aggr2: List[Any]) => aggr1 ::: aggr2).collect().toMap 
+
+
+Example:
+
+
+val sc = new SparkContext() 
+val l = Seq.fill(10)(scala.util.Random.nextInt(10)) 
+val rdd = sc.parallelize(l) 
+val rddPair = rdd.map(x => (x, x * scala.util.Random.nextInt(10))).cache() 
+
+
+val rddPair2 = rddPair.combineByKey((x: Int) => List(x), (l: List[Int], x: Int) => x :: l, (l1: List[Int], l2: List[Int]) => l1 ::: l2,new org.apache.spark.HashPartitioner(rddPair.partitions.size)) 
